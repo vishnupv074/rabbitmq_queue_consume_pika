@@ -11,11 +11,14 @@ MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "tasks")
 DB_NAME = os.getenv("DB_NAME", "failed_messages.db")
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class MongoDB:
     """Singleton MongoDB connection handler to avoid resource leaks."""
+
     _client = None
 
     @classmethod
@@ -43,12 +46,21 @@ def update_mongo(data):
 
         result = collection.update_one(
             {"order_id": data["order_id"]},  # Find by order ID
-            {"$set": {"status": "processed", "retry_count": data.get("retry_count", 0)}},
-            upsert=True  # Create if not exists
+            {
+                "$set": {
+                    "status": "processed",
+                    "retry_count": data.get("retry_count", 0),
+                }
+            },
+            upsert=True,  # Create if not exists
         )
-        logging.info(f"MongoDB update successful: {result.modified_count} document(s) updated")
+        logging.info(
+            f"MongoDB update successful: {result.modified_count} document(s) updated"
+        )
+        return True
     except Exception as e:
         logging.error(f"Failed to update MongoDB: {e}")
+        return False
 
 
 def init_db():

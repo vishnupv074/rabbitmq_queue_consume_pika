@@ -5,11 +5,13 @@ import time
 import logging
 import json
 from database import MongoDB, save_to_database, update_mongo
+from publisher import publish_message
 
 # Load environment variables
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 MAIN_QUEUE = os.getenv("QUEUE_NAME", "task_queue")
 DLQ_NAME = os.getenv("DLQ_NAME", "task_queue_dlq")
+PROCESSED_QUEUE = os.getenv("PROCESSED_QUEUE", "status_queue")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", 5))
 
 logging.basicConfig(
@@ -33,7 +35,11 @@ def process_failed_message(ch, method, properties, body):
             raise Exception("Simulated failure")
 
         # ✅ Update MongoDB on successful processing
-        update_mongo(message)
+        if update_mongo(message):
+            logging.info("Data successfully updated in MongoDB")
+
+            # Send processed message to another queue
+            publish_message(PROCESSED_QUEUE, message)
 
         logging.info(f"Successfully reprocessed: {message}")
         ch.basic_ack(delivery_tag=method.delivery_tag)

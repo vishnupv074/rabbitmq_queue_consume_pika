@@ -6,11 +6,13 @@ import time
 import logging
 
 from database import MongoDB, update_mongo
+from publisher import publish_message
 
 # Load environment variables
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 QUEUE_NAME = os.getenv("QUEUE_NAME", "task_queue")
 DLQ_NAME = os.getenv("DLQ_NAME", "task_queue_dlq")
+PROCESSED_QUEUE = os.getenv("PROCESSED_QUEUE", "status_queue")
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -28,8 +30,12 @@ def process_message(ch, method, properties, body):
         if "fail" in body.decode():
             raise Exception("Simulated processing failure")
 
-        # ✅ Update MongoDB after processing
-        update_mongo(message)
+        # Update MongoDB
+        if update_mongo(message):
+            logging.info("Data successfully updated in MongoDB")
+
+            # Send processed message to another queue
+            publish_message(PROCESSED_QUEUE, message)
 
         logging.info(f"Message processed successfully: {body.decode()}")
         ch.basic_ack(delivery_tag=method.delivery_tag)
